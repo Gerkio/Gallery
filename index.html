@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Galería Dinámica</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <h1>Galería</h1>
+  </header>
+  
+<!-- Modal para mostrar la imagen grande -->
+<div id="image-modal" class="modal">
+  <span class="close">&times;</span>
+  <span class="prev">&#10094;</span> <!-- Flecha hacia la izquierda -->
+  <img class="modal-content" id="modal-img">
+  <span class="next">&#10095;</span> <!-- Flecha hacia la derecha -->
+  <div id="caption"></div>
+</div>
+
+
+  <div class="gallery-container">
+    <div class="gallery" id="gallery">
+      <!-- Las imágenes se agregarán aquí dinámicamente -->
+    </div>
+  </div>
+
+  <!-- Modal para mostrar la imagen grande -->
+  <div id="image-modal" class="modal">
+    <span class="close">&times;</span>
+    <img class="modal-content" id="modal-img">
+    <div id="caption"></div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
