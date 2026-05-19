@@ -1,71 +1,213 @@
-// Array con las URLs de las imágenes
 const imageUrls = [
-  'https://i.ibb.co/KwNDXYp/Comfy-UI-00512.png/300/0000FF/FFFFFF?text=Foto1',
-  'https://i.ibb.co/5sjBYq2/Comfy-UI-00269.png/300/FF0000/FFFFFF?text=Foto2',
-  'https://i.ibb.co/ccvfVFc/Comfy-UI-00489.png/300/00FF00/FFFFFF?text=Foto3',
-  'https://i.ibb.co/Wg8zqF1/Comfy-UI-00494.png/300/FFFF00/FFFFFF?text=Foto4',
-  'https://i.ibb.co/qrJcXwy/Comfy-UI-00476.png/300/FF00FF/FFFFFF?text=Foto5',
-  'https://i.ibb.co/C2Q2trF/Comfy-UI-00107.png/300/00FFFF/FFFFFF?text=Foto6',
-  'https://i.ibb.co/wdtDwbP/Comfy-UI-00323.png/300/FFFFFF/000000?text=Foto7',
-  'https://i.ibb.co/GVfmFKq/Comfy-UI-00451.png/300/FFA500/FFFFFF?text=Foto8',
-  'https://i.ibb.co/KctLhFz/Comfy-UI-00459.png/300/800080/FFFFFF?text=Foto9',
-  'https://i.ibb.co/ZHN1sb1/Comfy-UI-00522.png/300/808080/FFFFFF?text=Foto10',
-  'https://i.ibb.co/Z6S1gWS/Comfy-UI-00505.png/300/008080/FFFFFF?text=Foto11',
-  'https://i.ibb.co/d23hMkD/Comfy-UI-00509.png/300/FF6347/FFFFFF?text=Foto12',
-  'https://i.ibb.co/fGfzDT2/Comfy-UI-00515.png/300/4682B4/FFFFFF?text=Foto13',
-  'https://i.ibb.co/k1NsdmY/Comfy-UI-00516.png/300/DAA520/FFFFFF?text=Foto14',
-  'https://i.ibb.co/YtzZC1q/Comfy-UI-00518.png/300/CD5C5C/FFFFFF?text=Foto15',
-
+  'https://i.ibb.co/KwNDXYp/Comfy-UI-00512.png',
+  'https://i.ibb.co/5sjBYq2/Comfy-UI-00269.png',
+  'https://i.ibb.co/ccvfVFc/Comfy-UI-00489.png',
+  'https://i.ibb.co/Wg8zqF1/Comfy-UI-00494.png',
+  'https://i.ibb.co/qrJcXwy/Comfy-UI-00476.png',
+  'https://i.ibb.co/C2Q2trF/Comfy-UI-00107.png',
+  'https://i.ibb.co/wdtDwbP/Comfy-UI-00323.png',
+  'https://i.ibb.co/GVfmFKq/Comfy-UI-00451.png',
+  'https://i.ibb.co/KctLhFz/Comfy-UI-00459.png',
+  'https://i.ibb.co/ZHN1sb1/Comfy-UI-00522.png',
+  'https://i.ibb.co/Z6S1gWS/Comfy-UI-00505.png',
+  'https://i.ibb.co/d23hMkD/Comfy-UI-00509.png',
+  'https://i.ibb.co/fGfzDT2/Comfy-UI-00515.png',
+  'https://i.ibb.co/k1NsdmY/Comfy-UI-00516.png',
+  'https://i.ibb.co/YtzZC1q/Comfy-UI-00518.png'
 ];
 
-// Variable para rastrear la imagen actual
-let currentIndex = 0;
+const gallery  = document.getElementById('gallery');
+const modal    = document.getElementById('image-modal');
+const modalImg = document.getElementById('modal-img');
+const caption  = document.getElementById('caption');
+const counter  = document.getElementById('modal-counter');
+const closeBtn = document.querySelector('.modal-close');
+const strip    = document.getElementById('modal-strip');
 
-// Función para agregar las imágenes al grid
+let currentIndex   = 0;
+let isTransitioning = false;
+let touchStartX    = 0;
+let observer;
+
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const preloadCache  = new Set();
+
+const expandSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>`;
+
+// ── Gallery ──────────────────────────────────────────────
+
+function createItem(url, index) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'gallery-item';
+  btn.dataset.index = index;
+  btn.setAttribute('aria-label', `Abrir imagen ${index + 1}`);
+  btn.style.setProperty('--i', index);
+
+  const img = document.createElement('img');
+  img.dataset.src = url;
+  img.alt = `Imagen ${index + 1}`;
+  img.loading = 'lazy';
+  img.decoding = 'async';
+  img.className = 'gallery-thumb';
+  img.onload = () => {
+    img.classList.add('loaded');
+    btn.classList.add('img-loaded');
+  };
+
+  const overlay = document.createElement('div');
+  overlay.className = 'gallery-overlay';
+  overlay.innerHTML = `<div class="gallery-icon">${expandSvg}</div><span class="gallery-label">Foto ${index + 1}</span>`;
+
+  btn.append(img, overlay);
+  return btn;
+}
+
 function loadGallery() {
-  const gallery = document.getElementById('gallery');
-  imageUrls.forEach((url, index) => {
-    const img = document.createElement('img');
-    img.src = url;
-    img.alt = `Imagen ${index + 1}`;
-    img.classList.add('gallery-item');
-    img.onclick = () => openModal(index); // Abrir modal en el índice actual
-    gallery.appendChild(img);
+  const frag = document.createDocumentFragment();
+  imageUrls.forEach((url, i) => frag.append(createItem(url, i)));
+  gallery.appendChild(frag);
+
+  gallery.querySelectorAll('img[data-src]').forEach(img => {
+    if (observer) observer.observe(img);
+    else img.src = img.dataset.src;
   });
 }
 
-// Abrir modal con la imagen seleccionada
+// ── Intersection Observer ────────────────────────────────
+
+function setupObserver() {
+  if (!('IntersectionObserver' in window)) return;
+  observer = new IntersectionObserver((entries, obs) => {
+    entries.forEach(({ isIntersecting, target }) => {
+      if (!isIntersecting) return;
+      target.src = target.dataset.src;
+      obs.unobserve(target);
+    });
+  }, { rootMargin: '200px 0px', threshold: 0 });
+}
+
+// ── Thumbnail Strip ──────────────────────────────────────
+
+function buildStrip() {
+  const frag = document.createDocumentFragment();
+  imageUrls.forEach((url, i) => {
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = '';
+    img.className = 'strip-thumb';
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    img.setAttribute('role', 'listitem');
+    img.setAttribute('tabindex', '0');
+    img.setAttribute('aria-label', `Ir a imagen ${i + 1}`);
+    img.dataset.index = i;
+    img.addEventListener('click', () => navigate(i));
+    img.addEventListener('keydown', e => { if (e.key === 'Enter') navigate(i); });
+    frag.append(img);
+  });
+  strip.appendChild(frag);
+}
+
+function syncStrip(index) {
+  strip.querySelectorAll('.strip-thumb').forEach((el, i) => el.classList.toggle('active', i === index));
+  strip.querySelector('.strip-thumb.active')?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+}
+
+// ── Preload ──────────────────────────────────────────────
+
+function preload(url) {
+  if (preloadCache.has(url)) return;
+  preloadCache.add(url);
+  new Image().src = url;
+}
+
+function preloadNeighbors(index) {
+  const prev = (index - 1 + imageUrls.length) % imageUrls.length;
+  const next = (index + 1) % imageUrls.length;
+  const run = () => { preload(imageUrls[prev]); preload(imageUrls[next]); };
+  'requestIdleCallback' in window
+    ? requestIdleCallback(run, { timeout: 800 })
+    : run();
+}
+
+// ── Modal ────────────────────────────────────────────────
+
 function openModal(index) {
   currentIndex = index;
-  const modal = document.getElementById('image-modal');
-  const modalImg = document.getElementById('modal-img');
-  const caption = document.getElementById('caption');
-
-  modal.style.display = "block";
-  modalImg.src = imageUrls[currentIndex];
-  caption.textContent = `Imagen ${currentIndex + 1}`;
+  modal.classList.add('open');
+  modal.setAttribute('aria-hidden', 'false');
+  modalImg.src = imageUrls[index];
+  modalImg.alt = `Imagen ampliada ${index + 1}`;
+  caption.textContent = `Fotografía ${index + 1} de ${imageUrls.length}`;
+  counter.textContent = `${index + 1} / ${imageUrls.length}`;
+  document.body.style.overflow = 'hidden';
+  closeBtn.focus();
+  syncStrip(index);
+  preloadNeighbors(index);
 }
 
-// Navegar a la imagen siguiente
-function nextImage() {
-  currentIndex = (currentIndex + 1) % imageUrls.length; // Navegar circularmente
-  openModal(currentIndex);
+function closeModal() {
+  modal.classList.remove('open');
+  modal.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
 }
 
-// Navegar a la imagen anterior
-function prevImage() {
-  currentIndex = (currentIndex - 1 + imageUrls.length) % imageUrls.length; // Navegar circularmente
-  openModal(currentIndex);
+async function navigate(index) {
+  if (isTransitioning) return;
+  isTransitioning = true;
+  currentIndex = index;
+
+  if (!reducedMotion) {
+    modalImg.classList.add('transitioning');
+    await new Promise(r => setTimeout(r, 160));
+  }
+
+  modalImg.src = imageUrls[index];
+  modalImg.alt = `Imagen ampliada ${index + 1}`;
+  caption.textContent = `Fotografía ${index + 1} de ${imageUrls.length}`;
+  counter.textContent = `${index + 1} / ${imageUrls.length}`;
+  syncStrip(index);
+
+  if (!reducedMotion) modalImg.classList.remove('transitioning');
+
+  isTransitioning = false;
+  preloadNeighbors(index);
 }
 
-// Cerrar el modal
-document.querySelector('.close').onclick = function() {
-  document.getElementById('image-modal').style.display = "none";
+function shift(delta) {
+  navigate((currentIndex + delta + imageUrls.length) % imageUrls.length);
 }
 
-// Manejar clics en las flechas de navegación
-document.querySelector('.next').onclick = nextImage;
-document.querySelector('.prev').onclick = prevImage;
+// ── Events ───────────────────────────────────────────────
 
-// Cargar la galería al cargar la página
-window.onload = loadGallery;
+gallery.addEventListener('click', e => {
+  const item = e.target.closest('button.gallery-item');
+  if (item) openModal(Number(item.dataset.index));
+});
+
+modal.addEventListener('click', e => {
+  const nav = e.target.closest('[data-direction]');
+  if (nav) { shift(nav.dataset.direction === 'next' ? 1 : -1); return; }
+  if (e.target.closest('[data-close]') || e.target.closest('.modal-close')) closeModal();
+});
+
+document.addEventListener('keydown', e => {
+  if (!modal.classList.contains('open')) return;
+  if (e.key === 'Escape')     closeModal();
+  if (e.key === 'ArrowRight') shift(1);
+  if (e.key === 'ArrowLeft')  shift(-1);
+});
+
+modal.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+modal.addEventListener('touchend',   e => {
+  const dx = touchStartX - e.changedTouches[0].clientX;
+  if (Math.abs(dx) > 45) shift(dx > 0 ? 1 : -1);
+}, { passive: true });
+
+// ── Init ─────────────────────────────────────────────────
+
+setupObserver();
+loadGallery();
+buildStrip();
+preload(imageUrls[0]);
